@@ -111,15 +111,7 @@ def encontraGrossura(img):
     grossura = math.floor((mode(intervalos).mode - 1)/2)
     return (grossura-1)
     
-def amaze(maze_image, inicio, fim):
-    
-    maze_image = cv2.imread(maze_image)
-    
-    # redimensionar imagem
-    maze_image,inicio,fim = redimensionar(maze_image, inicio, fim)
-    
-    original = maze_image.copy()
-    
+def preprocessamento(maze_image):
     maze_image = cv2.cvtColor(maze_image,cv2.COLOR_BGR2GRAY)
     
     # threshold binario local
@@ -131,6 +123,19 @@ def amaze(maze_image, inicio, fim):
     #deteccao de borda
     #maze_image = cv2.Canny(maze_image, 50, 150)
     #maze_image =  cv2.bitwise_not(maze_image)
+    return maze_image
+   
+def amaze(maze_image, inicio, fim):
+    
+    maze_image = cv2.imread(maze_image)
+    
+    # redimensionar imagem
+    maze_image,inicio,fim = redimensionar(maze_image, inicio, fim)
+    
+    original = maze_image.copy()
+    
+    # preprocessamento
+    maze_image = preprocessamento(maze_image.copy())
     
     cv2.imwrite("./output/1_tratamento.png", maze_image)
         
@@ -227,7 +232,7 @@ def vizinhosN(x,y,n):
     
     
 # usage examples
-amaze('alfie.png', [118,307], [269,200])
+#amaze('alfie.png', [118,307], [269,200])
     
 #amaze(cv2.imread('maze1.png'), [13,156], [320,172])
 
