@@ -3,13 +3,8 @@
 import cv2
 import numpy as np
 import sys
-import matplotlib.pyplot as plt
 import math
-import collections
-import pdb
-import imageio
 from scipy.stats import mode
-from PIL import Image, ImageDraw
 
 BRANCO = 255
 PRETO = 0
@@ -110,14 +105,16 @@ def encontraGrossura(img):
             
         imgcopia[int(linha)] = [125] * len(img[int(linha)] ) #escreve coluna
     
-    cv2.imwrite('./verbose/2_grossura.jpg', imgcopia)
+    cv2.imwrite('./output/2_grossura.jpg', imgcopia)
     intervalos = [value for value in intervalos if value != 0]
     
     grossura = math.floor((mode(intervalos).mode - 1)/2)
     return (grossura-1)
     
 def amaze(maze_image, inicio, fim):
-
+    
+    maze_image = cv2.imread(maze_image)
+    
     # redimensionar imagem
     maze_image,inicio,fim = redimensionar(maze_image, inicio, fim)
     
@@ -135,7 +132,7 @@ def amaze(maze_image, inicio, fim):
     #maze_image = cv2.Canny(maze_image, 50, 150)
     #maze_image =  cv2.bitwise_not(maze_image)
     
-    cv2.imwrite("./verbose/1_tratamento.png", maze_image)
+    cv2.imwrite("./output/1_tratamento.png", maze_image)
         
     
     solucao = None
@@ -160,7 +157,7 @@ def amaze(maze_image, inicio, fim):
             
         
         inicial = cv2.cvtColor(maze_image.copy(),cv2.COLOR_GRAY2RGB) - inicial
-        cv2.imwrite("./verbose/3_skel_"+str(fator)+".png", inicial)
+        cv2.imwrite("./output/3_skel_"+str(fator)+".png", inicial)
 
         # tenta todos os pontos iniciais
         pontoInicial = 0
@@ -177,7 +174,9 @@ def amaze(maze_image, inicio, fim):
                          if(skeleto[vizinho[0], vizinho[1]] > 125):
                              original[vizinho[0], vizinho[1]] = [255,0,0]
 
-                cv2.imwrite("./verbose/4_resultado.png", original)
+                cv2.imwrite("./output/4_resultado.png", original)
+                cv2.imshow("Output", original)
+                cv2.waitKey()
             
             pontoInicial = pontoInicial + 1
     
@@ -228,7 +227,7 @@ def vizinhosN(x,y,n):
     
     
 # usage examples
-#amaze(cv2.imread('alfie.png'), [118,307], [269,200])
+amaze('alfie.png', [118,307], [269,200])
     
 #amaze(cv2.imread('maze1.png'), [13,156], [320,172])
 
