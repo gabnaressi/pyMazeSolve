@@ -1,5 +1,6 @@
 # O programa que ajuda quem tem labirintite
 
+import scipy.ndimage.morphology as m
 import cv2
 import numpy as np
 import sys
@@ -10,10 +11,10 @@ BRANCO = 255
 PRETO = 0
 
 def redimensionar(image, inicio, fim):
-    if(image.shape[0] < 1200):
+    if(image.shape[0] < 1000):
         return(image, inicio, fim)
     
-    pct = 1/(image.shape[1] / 300)
+    pct = 1/(image.shape[1] / 1000)
     
     img=image.copy()
     width = int(img.shape[1] * pct)
@@ -25,7 +26,7 @@ def redimensionar(image, inicio, fim):
     return(img,inicio,fim)
     
     
-def encontraBrancos(imagem, ponto,tamanho,maxdist):
+def encontraBrancos(imagem, ponto,tamanho):
     
     brancos = cv2.findNonZero((imagem).transpose())
     
@@ -36,42 +37,7 @@ def encontraBrancos(imagem, ponto,tamanho,maxdist):
     img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
     
     return brancos[menores]
-  
-def esqueletizarLabirinto(maze_image, n):
     
-    if(n==0):
-        n=1/3    
-    
-    elemento = cv2.getStructuringElement(cv2.MORPH_CROSS,(3,3))
-    maze_image = cv2.erode(maze_image, elemento, iterations=int(n*3))#######
-    maze = maze_image.copy()
-    tamanho = np.size(maze)
-    skel = np.zeros(maze.shape,np.uint8)
-    
-    
-    done = False
-    
-    while (not done):
-        org = skel.copy()
-        eroded = cv2.erode(maze, elemento)
-        temp = cv2.dilate(eroded,elemento)
-        temp = cv2.subtract(maze, temp)
-        skel = cv2.bitwise_or(skel, temp)
-        maze = eroded.copy()
-        
-        zeros = tamanho - cv2.countNonZero(maze)
-        if(zeros == tamanho):
-            done=True
-        
-    if(n==1/3):
-        n=1/2
-    skel = cv2.dilate(skel,elemento,iterations=int(n*2))#########
-    
-    return skel
-    
-def antigoEsqueletizarLabirinto(maze_image,n):
-    return cv2.erode(maze_image, cv2.getStructuringElement(cv2.MORPH_RECT,(3,3)), iterations=n)
-
 def encontraGrossura(img):
     scannerCol = [img.shape[1] / 2, img.shape[1] / 3, img.shape[1]/1.5, img.shape[1]/1.3]
     scannerLinha = [img.shape[0] / 2, img.shape[0] / 3, img.shape[0]/1.5, img.shape[0]/1.3]
@@ -96,7 +62,7 @@ def encontraGrossura(img):
         
         intervaloAtual = 0
         
-        for pixel in [row[int(linha)] for row in img]: #acessa linha
+        for pixel in img[int(linha)]: #acessa linha
             if(pixel == PRETO):
                 intervalos.append(intervaloAtual)
                 intervaloAtual=0
@@ -110,6 +76,32 @@ def encontraGrossura(img):
     
     grossura = math.floor((mode(intervalos).mode - 1)/2)
     return (grossura-1)
+
+def esqueletiza(img):
+    h1 = np.array([[0, 0, 0],[0, 1, 0],[1, 1, 1]]) 
+    m1 = np.array([[1, 1, 1],[0, 0, 0],[0, 0, 0]]) 
+    h2 = np.array([[0, 0, 0],[1, 1, 0],[0, 1, 0]]) 
+    m2 = np.array([[0, 1, 1],[0, 0, 1],[0, 0, 0]])
+    hit_list = [] 
+    miss_list = []
+    for k in range(4): 
+        hit_list.append(np.rot90(h1, k))
+        hit_list.append(np.rot90(h2, k))
+        miss_list.append(np.rot90(m1, k))
+        miss_list.append(np.rot90(m2, k))    
+    img = img.copy()
+    while True:
+        last = img
+        for hit, miss in zip(hit_list, miss_list): 
+            hm = m.binary_hit_or_miss(img, hit, miss) 
+            img = np.logical_and(img, np.logical_not(hm)) 
+        if np.all(img == last):  
+            break
+    img = img.astype(np.uint8)
+    img*=255
+    return img    
+
+
     
 def preprocessamento(maze_image):
     maze_image = cv2.cvtColor(maze_image,cv2.COLOR_BGR2GRAY)
@@ -124,9 +116,9 @@ def preprocessamento(maze_image):
     #maze_image = cv2.Canny(maze_image, 50, 150)
     #maze_image =  cv2.bitwise_not(maze_image)
     return maze_image
-   
-def amaze(maze_image, inicio, fim):
     
+def amaze(maze_image, inicio, fim, ):
+   
     maze_image = cv2.imread(maze_image)
     
     # redimensionar imagem
@@ -142,55 +134,58 @@ def amaze(maze_image, inicio, fim):
     
     solucao = None
     
-    # tenta esqueletizações diferentes
-    fator = encontraGrossura(maze_image.copy())
-    while((solucao is None) and fator >= 0):
+    # tenta com e sem esqueletização
+    retry = False
+    while((solucao is None) and not retry):
         
-        if(fator==0):
+        if(retry):
             skel = maze_image.copy()
+            retry=True
         else:
-            skel = antigoEsqueletizarLabirinto(maze_image.copy(),fator)
-           
-        inicios = encontraBrancos(skel,inicio,15,fator)
-        fins = encontraBrancos(skel, fim, 15,fator)
+            skel = esqueletiza(maze_image.copy())
     
-        
+        inicios = encontraBrancos(skel,inicio,15)
+        fins = encontraBrancos(skel, fim, 5)
+    
         inicial = skel.copy()
         inicial = cv2.cvtColor(skel.copy(),cv2.COLOR_GRAY2RGB)
         for pixel in np.concatenate(inicios):
             inicial[pixel[0],pixel[1]] = [255,0,0]
             
-        
+        skeleto = maze_image.copy()
         inicial = cv2.cvtColor(maze_image.copy(),cv2.COLOR_GRAY2RGB) - inicial
-        cv2.imwrite("./output/3_skel_"+str(fator)+".png", inicial)
+        cv2.imwrite("./output/3_skel_"+str(int(retry))+".png", inicial)
 
         # tenta todos os pontos iniciais
         pontoInicial = 0
         while((solucao is None) & (pontoInicial < len(inicios))):
-            skeleto = skel.copy()
+            
             solucao = bfs(skel, np.concatenate(inicios[pontoInicial]), fins)
-            
-
-            
+           
             if(solucao is not None):
+                engrossamento = encontraGrossura(maze_image)
+                if(engrossamento > 2):
+                    engrossamento = engrossamento - 1
+               
                 for pixel in solucao:
-                     original[pixel[0], pixel[1]] = [255,0,0]
-                     for vizinho in vizinhosN(pixel[0],pixel[1],2):
+                     original[pixel[0], pixel[1]] = [15,170,15]
+                     for vizinho in vizinhosN(pixel[0],pixel[1],3):
                          if(skeleto[vizinho[0], vizinho[1]] > 125):
-                             original[vizinho[0], vizinho[1]] = [255,0,0]
+                             original[vizinho[0], vizinho[1]] = [15,170,15]
 
                 cv2.imwrite("./output/4_resultado.png", original)
                 cv2.imshow("Output", original)
                 cv2.waitKey()
             
             pontoInicial = pontoInicial + 1
-    
-        fator = fator - 1
 
 def bfs(maze_image,inicio,fim):
     fila = []
     fila.append([inicio])
     fim = np.concatenate(fim).tolist()
+    
+    tamx = maze_image.shape[0]
+    tamy = maze_image.shape[1]
     
     while fila:
         
@@ -203,13 +198,14 @@ def bfs(maze_image,inicio,fim):
         if(atual in fim):
             return caminho
         
-        for vizinho in vizinhos(atual[0],atual[1]):
-            if(maze_image[vizinho[0],vizinho[1]] == BRANCO):
-                novo_caminho = list(caminho)
-                novo_caminho.append(vizinho)
-                maze_image[vizinho[0],vizinho[1]] = 50
-                
-                fila.append(novo_caminho)
+        for vizinho in vizinhosDiag(atual[0],atual[1]):
+            if(vizinho[0] <= tamy & vizinho[1] <= tamx):
+                if(maze_image[vizinho[0],vizinho[1]] == BRANCO):
+                    novo_caminho = list(caminho)
+                    novo_caminho.append(vizinho)
+                    maze_image[vizinho[0],vizinho[1]] = 50
+                    
+                    fila.append(novo_caminho)
 
     
 def vizinhos(x,y):
@@ -234,8 +230,14 @@ def vizinhosN(x,y,n):
 # usage examples
 #amaze('alfie.png', [118,307], [269,200])
     
-#amaze(cv2.imread('maze1.png'), [13,156], [320,172])
+#amaze('maze1.png', [13,156], [320,172])
 
-#amaze(cv2.imread('maze.PNG'), [12,178], [198,156])
+#amaze('hexagon.png', [28,255], [331,255])
 
-#amaze(cv2.imread('mazePapel.png'), [188,159], [800,392])
+amaze('egip.png', [844,600], [102,509])
+
+#amaze('maze.PNG', [12,178], [198,156])
+
+#amaze('mazePapel.png', [188,159], [800,392])
+
+#amaze('complexo.png',[154,502],[92,476])
