@@ -14,7 +14,7 @@ def redimensionar(image, inicio, fim):
     if(image.shape[0] < 1000):
         return(image, inicio, fim)
     
-    pct = 1/(image.shape[1] / 1000)
+    pct = 1/(image.shape[1] / 750)
     
     img=image.copy()
     width = int(img.shape[1] * pct)
@@ -145,7 +145,7 @@ def amaze(maze_image, inicio, fim, ):
             skel = esqueletiza(maze_image.copy())
     
         inicios = encontraBrancos(skel,inicio,15)
-        fins = encontraBrancos(skel, fim, 5)
+        fins = encontraBrancos(skel, fim, 15)
     
         inicial = skel.copy()
         inicial = cv2.cvtColor(skel.copy(),cv2.COLOR_GRAY2RGB)
@@ -199,13 +199,14 @@ def bfs(maze_image,inicio,fim):
             return caminho
         
         for vizinho in vizinhosDiag(atual[0],atual[1]):
-            if(vizinho[0] <= tamy & vizinho[1] <= tamx):
-                if(maze_image[vizinho[0],vizinho[1]] == BRANCO):
-                    novo_caminho = list(caminho)
-                    novo_caminho.append(vizinho)
-                    maze_image[vizinho[0],vizinho[1]] = 50
-                    
-                    fila.append(novo_caminho)
+           # if(vizinho[0] <= tamy):
+               # if(vizinho[1] <= tamx):                
+            if(maze_image[vizinho[0],vizinho[1]] == BRANCO):
+                novo_caminho = list(caminho)
+                novo_caminho.append(vizinho)
+                maze_image[vizinho[0],vizinho[1]] = 50
+                
+                fila.append(novo_caminho)
 
     
 def vizinhos(x,y):
@@ -234,7 +235,9 @@ def vizinhosN(x,y,n):
 
 #amaze('hexagon.png', [28,255], [331,255])
 
-amaze('egip.png', [844,600], [102,509])
+#amaze('dr.png', [129,146], [675,559])
+
+amaze('tut.png',[848,605],[107,514])
 
 #amaze('maze.PNG', [12,178], [198,156])
 
