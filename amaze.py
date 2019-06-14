@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import sys
 import math
+import matplotlib.pyplot as plt
 from scipy.stats import mode
 
 BRANCO = 255
@@ -75,7 +76,11 @@ def encontraGrossura(img):
     intervalos = [value for value in intervalos if value != 0]
     
     grossura = math.floor((mode(intervalos).mode - 1)/2)
-    return (grossura-1)
+    
+    if(grossura > 1):
+        return(grossura-2)
+    else:
+        return(0)
 
 def esqueletiza(img):
     h1 = np.array([[0, 0, 0],[0, 1, 0],[1, 1, 1]]) 
@@ -129,18 +134,21 @@ def amaze(maze_image, inicio, fim, ):
     # preprocessamento
     maze_image = preprocessamento(maze_image.copy())
     
+    engrossamento = encontraGrossura(maze_image)
+    print(engrossamento)
+    maze_image = cv2.erode(maze_image, cv2.getStructuringElement(cv2.MORPH_RECT,(3,3)), iterations=engrossamento)
+    
     cv2.imwrite("./output/1_tratamento.png", maze_image)
         
     
     solucao = None
     
     # tenta com e sem esqueletização
-    retry = False
-    while((solucao is None) and not retry):
+    tentativa = 0
+    while((solucao is None) and tentativa < 2):
         
-        if(retry):
+        if(tentativa == 1):
             skel = maze_image.copy()
-            retry=True
         else:
             skel = esqueletiza(maze_image.copy())
     
@@ -154,7 +162,7 @@ def amaze(maze_image, inicio, fim, ):
             
         skeleto = maze_image.copy()
         inicial = cv2.cvtColor(maze_image.copy(),cv2.COLOR_GRAY2RGB) - inicial
-        cv2.imwrite("./output/3_skel_"+str(int(retry))+".png", inicial)
+        cv2.imwrite("./output/3_skel_"+str(int(tentativa))+".png", inicial)
 
         # tenta todos os pontos iniciais
         pontoInicial = 0
@@ -163,7 +171,7 @@ def amaze(maze_image, inicio, fim, ):
             solucao = bfs(skel, np.concatenate(inicios[pontoInicial]), fins)
            
             if(solucao is not None):
-                engrossamento = encontraGrossura(maze_image)
+                
                 if(engrossamento > 2):
                     engrossamento = engrossamento - 1
                
@@ -178,7 +186,7 @@ def amaze(maze_image, inicio, fim, ):
                 cv2.waitKey()
             
             pontoInicial = pontoInicial + 1
-
+    tentativa = tentativa + 1
 def bfs(maze_image,inicio,fim):
     fila = []
     fila.append([inicio])
@@ -199,8 +207,7 @@ def bfs(maze_image,inicio,fim):
             return caminho
         
         for vizinho in vizinhosDiag(atual[0],atual[1]):
-           # if(vizinho[0] <= tamy):
-               # if(vizinho[1] <= tamx):                
+            
             if(maze_image[vizinho[0],vizinho[1]] == BRANCO):
                 novo_caminho = list(caminho)
                 novo_caminho.append(vizinho)
@@ -236,8 +243,6 @@ def vizinhosN(x,y,n):
 #amaze('hexagon.png', [28,255], [331,255])
 
 #amaze('dr.png', [129,146], [675,559])
-
-amaze('tut.png',[848,605],[107,514])
 
 #amaze('maze.PNG', [12,178], [198,156])
 
